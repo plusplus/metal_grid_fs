@@ -1,22 +1,34 @@
 
 class GridImage 
+  
   BASE_URI      = "http://localhost:3000"
   RESIZE_REGEXP = /resize_(\d*)x(\d*)_/
   BASE_FS_PATH  = "#{RAILS_ROOT}/public"
-  attr_accessor :incoming_path
+
   def initialize path
-    @incoming_path = path[1,path.length]
+    @incoming_path = path[1..-1]
+    class << @incoming_path
+      def parts
+        self.split("/")
+      end
+      def dir_path
+        self.parts[0..-2].join("/")
+      end
+      def file_name
+        self.parts[-1..-1].flatten
+      end
+      def grid_fs_path
+        self.gsub(RESIZE_REGEXP,"").gsub("images/grid_file/","")
+      end
+    end
   end
+  
   def dest_file_path
-    [BASE_FS_PATH,incoming_path].join("/")
+    [BASE_FS_PATH,@incoming_path].join("/")
   end
   
-  def path_parts
-    @incoming_path.split("/")
-  end
-  
-  def dir_path
-    [BASE_FS_PATH, path_parts[0,path_parts.length-1]].join("/")
+  def full_dir_path
+    [BASE_FS_PATH, @incoming_path.dir_path].join("/")
   end
   
   def grid_store_path
@@ -30,7 +42,7 @@ class GridImage
   def resize width,height
     ImageScience.with_image_from_memory(file_data.read) do |img_file|
       img_file.resize(width.to_i,height.to_i) do |f|
-        FileUtils.mkdir_p dir_path
+        FileUtils.mkdir_p full_dir_path
         f.save(dest_file_path)
       end
     end
@@ -38,11 +50,11 @@ class GridImage
   end
   
   def exists?
-    GridStore.exist?(MongoMapper.database,grid_store_path)
+    GridStore.exist?(MongoMapper.database,@incoming_path.grid_fs_path)
   end
   
   def file_data
-    GridStore.open(MongoMapper.database, grid_store_path, 'r') {|file| file}
+    GridStore.open(MongoMapper.database, @incoming_path.grid_fs_path, 'r') {|file| file}
   end
   
 end
