@@ -19,9 +19,10 @@ class GridFile
     request = Rack::Request.new(env)
     if request.path_info =~ /^\/images\/grid_file\/(.+)$/ 
       matches = GridFile.test_for_resize request.path_info
-      unless matches      
-        if GridStore.exist?(MongoMapper.database,$1)
-          GridStore.open(MongoMapper.database, $1, 'r') do |file|
+      unless matches
+        grid_key = CGI.unescape($1)
+        if GridStore.exist?(MongoMapper.database, grid_key)
+          GridStore.open(MongoMapper.database, grid_key, 'r') do |file|
             [200, {"Content-Type" => file.content_type}, [file.read]]
           end
         else
